@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="ja" manifest="offline.appcache">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="ピアノ">
+<meta name="format-detection" content="telephone=no">
+<meta name="theme-color" content="#fdf1d8">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<title>こども ピアノ</title>
+<style>
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#fdf1d8;}
+*{-webkit-box-sizing:border-box;box-sizing:border-box;}
+body{font-family:"Hiragino Maru Gothic ProN","Hiragino Sans","Hiragino Kaku Gothic ProN",sans-serif;color:#4a2c12;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:rgba(0,0,0,0);
+  -webkit-text-size-adjust:100%;touch-action:none;}
+
+/* 縦向きの画面（縦ロックのスマホなど）では、#app ごと90度まわして横向きで見せる */
+#app{position:fixed;left:0;top:0;width:100%;height:100%;overflow:hidden;-webkit-transform-origin:0 0;transform-origin:0 0;}
+
+#title{position:absolute;left:16px;top:12px;font-size:22px;font-weight:bold;letter-spacing:1px;white-space:nowrap;}
+/* おした音の名前（ど・れ・み…）を大きく */
+#name{position:absolute;left:50%;top:2px;width:160px;margin-left:-80px;text-align:center;font-size:42px;font-weight:bold;line-height:52px;
+  text-shadow:0 2px 0 rgba(255,255,255,.9);}
+#name.pop{-webkit-animation:pop .28s cubic-bezier(.3,1.7,.5,1);animation:pop .28s cubic-bezier(.3,1.7,.5,1);}
+@-webkit-keyframes pop{from{-webkit-transform:scale(.4)}to{-webkit-transform:scale(1)}}
+@keyframes pop{from{transform:scale(.4)}to{transform:scale(1)}}
+
+#kb{position:absolute;}
+.wk{position:absolute;top:0;border:3px solid #4a2c12;border-top:none;border-radius:0 0 16px 16px;
+  box-shadow:inset 0 -12px 0 rgba(0,0,0,.06),0 4px 0 rgba(74,44,18,.25);
+  -webkit-transition:-webkit-transform .05s;transition:transform .05s;}
+.wk.down{-webkit-transform:translateY(4px);transform:translateY(4px);box-shadow:inset 0 -6px 0 rgba(0,0,0,.06),0 0 0 rgba(74,44,18,.25);}
+.wk .lab{position:absolute;left:12%;right:12%;border-radius:14px;color:#fff;font-weight:bold;text-align:center;white-space:nowrap;
+  text-shadow:0 1px 0 rgba(0,0,0,.18);}
+.wk .lab.fa{letter-spacing:-.12em;}
+.bk{position:absolute;top:0;z-index:2;background:#33334f;border:3px solid #1d1d33;border-top:none;border-radius:0 0 10px 10px;
+  box-shadow:inset 0 -10px 0 rgba(255,255,255,.13),0 3px 0 rgba(0,0,0,.25);
+  -webkit-transition:-webkit-transform .05s;transition:transform .05s;}
+.bk.down{background:#5c5c8f;-webkit-transform:translateY(3px);transform:translateY(3px);}
+
+/* ガイド：つぎに押すけんだけ光って、👇 が出る */
+.wk.next,.bk.next{-webkit-animation:glow 1s ease-in-out infinite;animation:glow 1s ease-in-out infinite;}
+.bk.next{background:#7b7bd6;}
+@-webkit-keyframes glow{0%,100%{box-shadow:0 0 0 4px #ffd43b,0 0 22px 8px rgba(255,212,59,.95)}50%{box-shadow:0 0 0 4px #ffd43b,0 0 6px 2px rgba(255,212,59,.5)}}
+@keyframes glow{0%,100%{box-shadow:0 0 0 4px #ffd43b,0 0 22px 8px rgba(255,212,59,.95)}50%{box-shadow:0 0 0 4px #ffd43b,0 0 6px 2px rgba(255,212,59,.5)}}
+#guide{position:absolute;z-index:4;display:none;text-align:center;pointer-events:none;line-height:1;
+  -webkit-animation:bob .5s ease-in-out infinite alternate;animation:bob .5s ease-in-out infinite alternate;}
+@-webkit-keyframes bob{from{-webkit-transform:translateY(-6px)}to{-webkit-transform:translateY(6px)}}
+@keyframes bob{from{transform:translateY(-6px)}to{transform:translateY(6px)}}
+#prog{position:absolute;left:16px;top:44px;width:170px;height:9px;border-radius:5px;background:rgba(74,44,18,.15);overflow:hidden;display:none;}
+#prog i{display:block;height:100%;width:0;background:#ff922b;border-radius:5px;-webkit-transition:width .2s;transition:width .2s;}
+#app.short #prog{top:32px;height:7px;}
+/* 曲えらび */
+#menu{position:absolute;left:0;top:0;right:0;bottom:0;z-index:8;background:rgba(253,241,216,.97);text-align:center;display:none;}
+#menu .mh{font-size:24px;font-weight:bold;margin:14px 0 10px;}
+#app.short #menu .mh{font-size:18px;margin:6px 0 4px;}
+.sb{display:inline-block;vertical-align:top;margin:5px;border-radius:18px;background:#fff;border:3px solid #4a2c12;
+  box-shadow:0 4px 0 rgba(74,44,18,.25);font-weight:bold;overflow:hidden;white-space:nowrap;}
+.sb .em{display:inline-block;margin-right:6px;}
+.sb.cur{background:#ffe8cc;}
+/* ひけたら */
+#done{position:absolute;left:0;top:0;right:0;bottom:0;z-index:7;display:none;text-align:center;pointer-events:none;}
+#done div{position:absolute;left:0;right:0;top:22%;font-size:54px;font-weight:bold;color:#ff6b6b;text-shadow:0 3px 0 #fff,0 0 12px #fff;
+  -webkit-animation:pop .4s cubic-bezier(.3,1.7,.5,1);animation:pop .4s cubic-bezier(.3,1.7,.5,1);}
+#app.short #done div{top:12%;font-size:38px;}
+
+/* おしたときに出る音符 */
+#fx{position:absolute;left:0;top:0;right:0;bottom:0;pointer-events:none;z-index:3;}
+.note{position:absolute;width:40px;margin-left:-20px;text-align:center;font-size:30px;font-weight:bold;line-height:1;
+  text-shadow:0 0 3px #fff,0 0 3px #fff,0 2px 0 #fff;-webkit-animation:fly .9s ease-out forwards;animation:fly .9s ease-out forwards;}
+@-webkit-keyframes fly{0%{-webkit-transform:translate(0,0) scale(.6);opacity:1}100%{-webkit-transform:translate(0,-80px) scale(1.3);opacity:0}}
+@keyframes fly{0%{transform:translate(0,0) scale(.6);opacity:1}100%{transform:translate(0,-80px) scale(1.3);opacity:0}}
+
+#pills{position:absolute;right:10px;top:10px;z-index:5;white-space:nowrap;}
+.pill{position:relative;display:inline-block;height:34px;line-height:34px;padding:0 12px;border-radius:17px;background:rgba(255,255,255,.88);
+  box-shadow:0 2px 0 rgba(74,44,18,.18);font-size:14px;font-weight:bold;overflow:hidden;}
+.pill .fill{position:absolute;left:0;top:0;bottom:0;width:0;background:#ffc078;}
+.pill.holding .fill{width:100%;-webkit-transition:width .9s linear;transition:width .9s linear;}
+.pill span{position:relative;}
+.pill .hint{font-size:10px;font-weight:normal;opacity:.6;margin-left:5px;}
+
+#start{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(253,241,216,.96);z-index:10;text-align:center;
+  -webkit-transition:opacity .35s;transition:opacity .35s;}
+#start.gone{opacity:0;}
+#sTitle{position:absolute;left:0;right:0;top:10%;font-size:36px;font-weight:bold;letter-spacing:2px;}
+#sSub{position:absolute;left:0;right:0;top:10%;margin-top:52px;font-size:19px;}
+#startBtn{position:absolute;left:50%;top:52%;width:280px;height:280px;margin:-140px 0 0 -140px;border-radius:50%;
+  background:#ff922b;color:#fff;box-shadow:inset 0 -12px 0 rgba(0,0,0,.15),0 8px 0 rgba(74,44,18,.15);}
+#startBtn .big{font-size:110px;line-height:1;margin-top:50px;-webkit-animation:hop .7s ease-in-out infinite alternate;animation:hop .7s ease-in-out infinite alternate;}
+#startBtn .go{font-size:23px;font-weight:bold;margin-top:14px;}
+@-webkit-keyframes hop{from{-webkit-transform:translateY(0)}to{-webkit-transform:translateY(-12px)}}
+@keyframes hop{from{transform:translateY(0)}to{transform:translateY(-12px)}}
+#hint{position:absolute;left:24px;right:24px;bottom:4%;font-size:14px;line-height:1.8;opacity:.75;}
+/* 背の低い画面（スマホの横向き）では小さめに */
+#app.short #title{top:8px;font-size:17px;}
+#app.short #name{font-size:32px;line-height:40px;}
+#app.short #pills{top:5px;}
+#app.short #sTitle{top:6%;font-size:26px;}
+#app.short #sSub{margin-top:38px;font-size:15px;}
+#app.short #startBtn{top:56%;width:170px;height:170px;margin:-85px 0 0 -85px;}
+#app.short #startBtn .big{font-size:64px;margin-top:30px;}
+#app.short #startBtn .go{font-size:16px;margin-top:6px;}
+#app.short #hint{display:none;}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="title">🎹 こども ピアノ</div>
+  <div id="name"></div>
+  <div id="prog"><i id="progBar"></i></div>
+  <div id="kb"></div>
+  <div id="fx"></div>
+  <div id="guide">👇</div>
+  <div id="done"><div>🎉 やったね！ ひけたね！</div></div>
+  <div id="menu"><div class="mh">どの きょくを ひく？</div><div id="menuList"></div></div>
+  <div id="pills">
+    <div class="pill" id="songBtn"><span>🎵 きょく</span></div>
+    <div class="pill" id="vol"><i class="fill"></i><span id="volIcon">🔉</span> <span id="volText">ふつう</span><span class="hint">ながおし</span></div>
+  </div>
+  <div id="start">
+    <div id="sTitle">こども ピアノ</div>
+    <div id="sSub">けんばんを おして、ピアノを ひいてみよう！</div>
+    <div id="startBtn"><div class="big">🎹</div><div class="go">タップして はじめる</div></div>
+    <div id="hint">音が出ないときは、iPadの消音（マナーモード）をオフにして音量を上げてください。<br>右上の 🔉 を長押しすると、音の大きさを3段階で変えられます。ゆびを すべらせると、つづけて ひけます。</div>
+  </div>
+</div>
+
+<script src="songs.js"></script>
+<script>
+(function () {
+/* ===== 古いiPad(iOS 9〜)でも動くよう ES5 だけで書いています ===== */
+function $(id) { return document.getElementById(id); }
+var LOW = 60, HIGH = 84;   /* ド4 〜 ド6（白けん15・黒けん10） */
+var NAME = { 0: 'ど', 2: 'れ', 4: 'み', 5: 'ふぁ', 7: 'そ', 9: 'ら', 11: 'し' };
+var COL = { 0: '#ff6b6b', 2: '#ff922b', 4: '#fab005', 5: '#40c057', 7: '#339af0', 9: '#5c7cfa', 11: '#cc5de8' };
+var LIGHT = { 0: '#fff0f0', 2: '#fff4e6', 4: '#fff9db', 5: '#ebfbee', 7: '#e7f5ff', 9: '#edf2ff', 11: '#f8f0fc' };
+var PRESS = { 0: '#ffc9c9', 2: '#ffd8a8', 4: '#ffec99', 5: '#b2f2bb', 7: '#a5d8ff', 9: '#bac8ff', 11: '#eebefa' };
+function isBlack(m) { var p = m % 12; return p === 1 || p === 3 || p === 6 || p === 8 || p === 10; }
+
+/* ---------- けんばんを作る ---------- */
+var kb = $('kb'), fx = $('fx'), keys = [], whites = [];
+for (var m = LOW; m <= HIGH; m++) {
+  var el = document.createElement('div');
+  el._m = m;
+  if (isBlack(m)) { el.className = 'bk'; el._base = 'bk'; }
+  else {
+    el.className = 'wk'; el._base = 'wk';
+    el.style.background = LIGHT[m % 12];
+    var lab = document.createElement('div');
+    lab.className = m % 12 === 5 ? 'lab fa' : 'lab'; lab.style.background = COL[m % 12];
+    lab.appendChild(document.createTextNode(NAME[m % 12]));
+    el.appendChild(lab); el._lab = lab;
+    whites.push(el);
+  }
+  keys.push(el);
+  kb.appendChild(el);
+}
+
+/* ---------- 画面の大きさに合わせる（縦の画面では90度まわす） ---------- */
+var app = $('app'), rot = false, VW = 0, VH = 0;
+function layout() {
+  var sw = window.innerWidth, sh = window.innerHeight;
+  rot = sh > sw;
+  VW = rot ? sh : sw; VH = rot ? sw : sh;
+  app.style.width = VW + 'px'; app.style.height = VH + 'px';
+  /* スマホを左に倒した向き（上が左）で、ちょうど正しく見える */
+  var tf = rot ? 'translate(' + sw + 'px,0) rotate(90deg)' : 'none';
+  app.style.webkitTransform = tf; app.style.transform = tf;
+  var short = VH < 560;
+  app.className = short ? 'short' : '';
+  var top = short ? 50 : 64, side = 10;
+  var wk = (VW - side * 2) / whites.length;
+  var kh = Math.min(VH - top - 12, wk * 6.2);
+  kb.style.left = side + 'px'; kb.style.top = (VH - kh - 10) + 'px';
+  /* けんばんの上に空きがあれば（iPad など）、おした音の名前をそこに大きく出す */
+  var gap = VH - kh - 10 - top, nm = $('name');
+  if (gap > 110) {
+    var fs = Math.min(150, gap * 0.62);
+    nm.style.fontSize = fs + 'px'; nm.style.lineHeight = (fs * 1.2) + 'px';
+    nm.style.width = (fs * 3) + 'px'; nm.style.marginLeft = (-fs * 1.5) + 'px';
+    nm.style.top = (top - 6 + (gap - fs * 1.2) / 2) + 'px';
+  } else {
+    nm.style.fontSize = nm.style.lineHeight = nm.style.width = nm.style.marginLeft = nm.style.top = '';
+  }
+  kb.style.width = (wk * whites.length) + 'px'; kb.style.height = kh + 'px';
+  var cols = VW >= 900 ? 4 : 3, bw = Math.min(260, (VW - 30) / cols - 12), bh = short ? Math.max(40, (VH - 60) / 5 - 10) : 70;
+  var items = $('menuList').childNodes;
+  for (var j = 0; j < items.length; j++) {
+    var it = items[j];
+    it.style.width = bw + 'px'; it.style.height = bh + 'px'; it.style.lineHeight = (bh - 6) + 'px';
+    it.style.fontSize = Math.min(22, bh * 0.38, (bw - 24) / (it._len + 1.8)) + 'px';
+  }
+  var wi = 0, lab = Math.min(30, Math.max(14, wk * 0.4));
+  for (var i = 0; i < keys.length; i++) {
+    var k = keys[i];
+    if (k._base === 'wk') {
+      k.style.left = (wi * wk + 1) + 'px'; k.style.width = (wk - 2) + 'px'; k.style.height = kh + 'px';
+      k._lab.style.fontSize = (k._m % 12 === 5 ? lab * 0.8 : lab) + 'px'; k._lab.style.lineHeight = (lab * 1.6) + 'px'; k._lab.style.bottom = Math.max(8, kh * 0.06) + 'px';
+      wi++;
+    } else {
+      var bw = wk * 0.6;
+      k.style.left = (wi * wk - bw / 2) + 'px'; k.style.width = bw + 'px'; k.style.height = (kh * 0.6) + 'px';
+    }
+  }
+}
+
+/* ---------- 音 ---------- */
+var AC = window.AudioContext || window.webkitAudioContext;
+var ctx = null, master = null, unlocked = false, raw = {}, bufs = {};
+var VOLS = [0.35, 0.65, 1.0], VOL_ICON = ['🔈', '🔉', '🔊'], VOL_NAME = ['ちいさい', 'ふつう', 'おおきい'], volIdx = 1;
+try { var sv = localStorage.getItem('piano-oto-vol'); if (sv !== null && VOLS[+sv] !== undefined) volIdx = +sv; } catch (e) {}
+
+/* 音のデータは先に読んでおく（音を出せるようになったら、すぐ使えるように） */
+function fetchRaw(m) {
+  var x = new XMLHttpRequest();
+  x.open('GET', 'notes/' + m + '.m4a', true);
+  x.responseType = 'arraybuffer';
+  x.onload = function () { if (x.status === 200 || (x.status === 0 && x.response)) { raw[m] = x.response; if (ctx) decode(m); } };
+  x.send();
+}
+function decode(m) {
+  if (bufs[m] || !raw[m] || !ctx) return;
+  var data = raw[m]; raw[m] = null;
+  try {
+    var p = ctx.decodeAudioData(data, function (b) { bufs[m] = b; }, function () {});
+    if (p && p['catch']) p['catch'](function () {});
+  } catch (e) {}
+}
+for (var q = LOW; q <= HIGH; q++) fetchRaw(q);
+
+function resume() {
+  if (ctx && ctx.state && ctx.state !== 'running' && ctx.resume) {
+    try { var p = ctx.resume(); if (p && p['catch']) p['catch'](function () {}); } catch (e) {}
+  }
+}
+function unlock() {
+  if (!AC) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e0) {}
+  if (!ctx) {
+    try { ctx = new AC(); } catch (e) { return; }
+    master = ctx.createGain(); master.gain.value = VOLS[volIdx]; master.connect(ctx.destination);
+    for (var i = LOW; i <= HIGH; i++) decode(i);
+  }
+  resume();
+  if (!unlocked) {
+    try { var b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); } catch (e2) {}
+    unlocked = true;
+  }
+}
+
+var voices = {}, order = [];
+function noteOn(m) {
+  if (!ctx || !bufs[m]) return;
+  resume();
+  noteOff(m, 0.02);
+  var s = ctx.createBufferSource(), g = ctx.createGain();
+  s.buffer = bufs[m]; g.gain.value = 1;
+  s.connect(g); g.connect(master);
+  try { s.start(0); } catch (e) { try { s.noteOn(0); } catch (e2) {} }
+  voices[m] = { s: s, g: g };
+  order.push(m);
+  /* 同時に鳴らすのは12音まで（古いiPadのため） */
+  while (order.length > 12) { var o = order.shift(); if (voices[o]) noteOff(o, 0.05); }
+}
+function noteOff(m, tc) {
+  var v = voices[m];
+  if (!v) return;
+  voices[m] = null;
+  for (var i = 0; i < order.length; i++) if (order[i] === m) { order.splice(i, 1); break; }
+  var now = ctx.currentTime, t = tc || 0.3;   /* はなすと、ふわっと消える */
+  try { v.g.gain.cancelScheduledValues(now); v.g.gain.setValueAtTime(v.g.gain.value, now); v.g.gain.setTargetAtTime(0, now, t); } catch (e) {}
+  try { v.s.stop(now + t * 6); } catch (e2) {}
+}
+
+/* ---------- けんばんをおす ---------- */
+var SYM = ['♪', '♫', '♪'];
+function floatNote(k) {
+  if (fx.childNodes.length > 24) return;
+  var n = document.createElement('div');
+  n.className = 'note';
+  n.textContent = SYM[Math.floor(Math.random() * SYM.length)];
+  n.style.color = isBlack(k._m) ? '#5c5c8f' : COL[k._m % 12];
+  n.style.left = (kb.offsetLeft + k.offsetLeft + k.offsetWidth / 2) + 'px';
+  n.style.top = (kb.offsetTop - 30) + 'px';
+  fx.appendChild(n);
+  setTimeout(function () { if (n.parentNode) n.parentNode.removeChild(n); }, 950);
+}
+var nameTimer = null;
+function showName(m) {
+  var nm = $('name');
+  nm.textContent = isBlack(m) ? '♯' : NAME[m % 12];
+  nm.style.color = isBlack(m) ? '#5c5c8f' : COL[m % 12];
+  nm.className = ''; void nm.offsetWidth; nm.className = 'pop';
+}
+function paint(k) {
+  k.className = k._base + (k._down ? ' down' : '') + (k === nextKey ? ' next' : '');
+  if (k._base === 'wk') k.style.background = (k._down || k === nextKey) ? PRESS[k._m % 12] : LIGHT[k._m % 12];
+  else k.style.background = '';
+}
+function press(k) {
+  k._down = true; paint(k);
+  noteOn(k._m); floatNote(k); showName(k._m);
+  /* ガイドどおりのけんなら、つぎへ（ちがうけんでも音は鳴る。しかったりしない） */
+  if (song && !finishing && k._m === song.n[pos]) {
+    pos++;
+    if (pos >= song.n.length) finish(); else updateGuide();
+  }
+}
+function release(k) {
+  k._down = false; paint(k);
+  noteOff(k._m);
+}
+
+/* ---------- ガイド（つぎに押すけんだけ光る） ---------- */
+var SONGS = window.SONGS || [], song = null, pos = 0, nextKey = null, finishing = false;
+function updateGuide() {
+  var old = nextKey, g = $('guide');
+  nextKey = (song && !finishing) ? keys[song.n[pos] - LOW] : null;
+  if (old) paint(old);
+  if (nextKey) paint(nextKey);
+  $('prog').style.display = song ? 'block' : 'none';
+  $('progBar').style.width = song ? (pos / song.n.length * 100) + '%' : '0';
+  if (!nextKey) { g.style.display = 'none'; return; }
+  showName(nextKey._m);   /* 曲のときは、つぎに押す音の名前を出す */
+  var k = nextKey, sz = Math.round(Math.min(48, Math.max(26, k.offsetWidth * (k._base === 'bk' ? 1.1 : 0.75))));
+  g.style.fontSize = sz + 'px'; g.style.width = (sz * 1.4) + 'px';
+  g.style.left = (kb.offsetLeft + k.offsetLeft + k.offsetWidth / 2 - sz * 0.7) + 'px';
+  var y = k._base === 'bk' ? k.offsetHeight - sz * 1.25 : Math.max(k.offsetHeight * 0.6 + 4, k.offsetHeight - k.offsetWidth * 1.35 - sz);
+  g.style.top = (kb.offsetTop + y) + 'px';
+  g.style.display = 'block';
+}
+function setSong(i) {
+  song = (i >= 0 && SONGS[i]) ? SONGS[i] : null; pos = 0; finishing = false;
+  try { localStorage.setItem('piano-oto-song', String(song ? i : -1)); } catch (e) {}
+  $('title').textContent = song ? song.e + ' ' + song.t : '🎹 じゆうに ひく';
+  var items = $('menuList').childNodes;
+  for (var j = 0; j < items.length; j++) items[j].className = 'sb' + (items[j]._song === (song ? i : -1) ? ' cur' : '');
+  updateGuide();
+}
+function finish() {
+  finishing = true; updateGuide();
+  $('progBar').style.width = '100%';
+  var d = $('done'); d.style.display = 'block';
+  /* ごほうびの音：ド・ミ・ソ・ド */
+  var fan = [72, 76, 79, 84];
+  for (var i = 0; i < fan.length; i++) (function (m, t) { setTimeout(function () { noteOn(m); setTimeout(function () { noteOff(m); }, 700); }, t); })(fan[i], 350 + i * 160);
+  setTimeout(function () { d.style.display = 'none'; finishing = false; pos = 0; updateGuide(); }, 3200);
+}
+
+/* ---------- 曲えらび ---------- */
+function addItem(i, label, n) {
+  var b = document.createElement('div');
+  b._song = i; b.className = 'sb'; b._len = n;
+  b.innerHTML = label;
+  $('menuList').appendChild(b);
+}
+addItem(-1, '<span class="em">🎹</span>じゆうに ひく', 7);
+for (var si = 0; si < SONGS.length; si++) addItem(si, '<span class="em">' + SONGS[si].e + '</span>' + SONGS[si].t, SONGS[si].t.length);
+function uiOf(n) {
+  while (n && n !== document) {
+    if (n._song !== undefined || n.id === 'songBtn' || n.id === 'menu') return n;
+    n = n.parentNode;
+  }
+  return null;
+}
+function tapUI(n) {
+  if (n.id === 'songBtn') { $('menu').style.display = 'block'; return; }
+  if (n._song !== undefined) { setSong(n._song); $('menu').style.display = 'none'; }
+}
+function keyAt(x, y) {
+  var el = document.elementFromPoint(x, y);
+  while (el && el !== document.body && el !== document) { if (el._m !== undefined) return el; el = el.parentNode; }
+  return null;
+}
+var held = {};   /* 指（タッチ）ごとに、おさえているけん */
+function stillHeld(k, except) { for (var id in held) if (held.hasOwnProperty(id) && id !== except && held[id] === k) return true; return false; }
+function fingerDown(id, x, y) {
+  var k = keyAt(x, y);
+  if (!k) return;
+  held[id] = k; press(k);
+}
+function fingerMove(id, x, y) {
+  var k = keyAt(x, y), old = held[id];
+  if (k === old) return;
+  delete held[id];
+  if (old && !stillHeld(old, id)) release(old);
+  if (k) { held[id] = k; press(k); }   /* ゆびをすべらせると、つぎのけんが鳴る */
+}
+function fingerUp(id) {
+  var old = held[id];
+  delete held[id];
+  if (old && !stillHeld(old, id)) release(old);
+}
+
+/* ---------- 音の大きさ（長押しで切りかえ） ---------- */
+function showVol() {
+  $('volIcon').textContent = VOL_ICON[volIdx];
+  $('volText').textContent = VOL_NAME[volIdx];
+  if (master) master.gain.value = VOLS[volIdx];
+}
+var holdTimer = null, holdEl = null;
+function holdPress(el) {
+  holdRelease();
+  holdEl = el; el.className = 'pill holding';
+  holdTimer = setTimeout(function () {
+    holdTimer = null; holdRelease();
+    volIdx = (volIdx + 1) % VOLS.length; showVol();
+    try { localStorage.setItem('piano-oto-vol', String(volIdx)); } catch (e) {}
+    noteOn(72); setTimeout(function () { noteOff(72); }, 400);
+  }, 900);
+}
+function holdRelease() {
+  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+  if (holdEl) { holdEl.className = 'pill'; holdEl = null; }
+}
+function isPill(n) { while (n && n !== document) { if (n.id === 'vol') return n; n = n.parentNode; } return null; }
+showVol();
+
+/* ---------- はじめる ---------- */
+/* iPad の Safari では、はじめるときに全画面（タブやアドレスバーを消す）。iPhone の Safari はホーム画面に追加して使う */
+function goFull() {
+  if (window.navigator.standalone) return;
+  var d = document.documentElement, f = d.requestFullscreen || d.webkitRequestFullscreen;
+  if (!f || document.fullscreenElement || document.webkitFullscreenElement) return;
+  try { var r = f.call(d); if (r && r['catch']) r['catch'](function () {}); } catch (e) {}
+}
+var started = false;
+function start() {
+  if (started) return;
+  started = true;
+  goFull();
+  var st = $('start'); st.className = 'gone';
+  setTimeout(function () { st.style.display = 'none'; }, 400);
+}
+if (!AC) $('startBtn').lastChild.textContent = 'このブラウザでは音が出せません';
+
+/* ---------- タッチ（いくつもの指で同時に） ---------- */
+var passiveOK = false;
+try {
+  var po = Object.defineProperty({}, 'passive', { get: function () { passiveOK = true; return true; } });
+  window.addEventListener('ptest', null, po); window.removeEventListener('ptest', null, po);
+} catch (e) {}
+var NP = passiveOK ? { passive: false } : false, lastTouch = 0;
+document.addEventListener('touchstart', function (e) {
+  e.preventDefault(); lastTouch = Date.now();
+  if (!started) return;
+  unlock();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i], pl = isPill(t.target);
+    if (uiOf(t.target)) continue;
+    if (pl) holdPress(pl); else fingerDown('t' + t.identifier, t.clientX, t.clientY);
+  }
+}, NP);
+document.addEventListener('touchmove', function (e) {
+  e.preventDefault();
+  if (!started) return;
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (held['t' + t.identifier] !== undefined || keyAt(t.clientX, t.clientY)) fingerMove('t' + t.identifier, t.clientX, t.clientY);
+  }
+}, NP);
+function touchEnd(e) {
+  e.preventDefault(); lastTouch = Date.now();
+  unlock();
+  if (!started) { start(); return; }
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (isPill(t.target)) holdRelease();
+    var ui = uiOf(t.target);
+    if (ui && e.type === 'touchend') tapUI(ui);
+    fingerUp('t' + t.identifier);
+  }
+}
+document.addEventListener('touchend', touchEnd, NP);
+document.addEventListener('touchcancel', touchEnd, NP);
+document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
+document.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+var mouseDown = false;
+document.addEventListener('mousedown', function (e) {
+  if (Date.now() - lastTouch < 1000) return;
+  unlock();
+  if (!started) { start(); return; }
+  var ui = uiOf(e.target);
+  if (ui) { tapUI(ui); return; }
+  var pl = isPill(e.target);
+  if (pl) { holdPress(pl); return; }
+  mouseDown = true; fingerDown('mouse', e.clientX, e.clientY);
+});
+document.addEventListener('mousemove', function (e) { if (mouseDown) fingerMove('mouse', e.clientX, e.clientY); });
+document.addEventListener('mouseup', function () {
+  if (Date.now() - lastTouch < 1000) return;
+  holdRelease(); mouseDown = false; fingerUp('mouse');
+});
+
+layout();
+window.addEventListener('resize', function () { layout(); updateGuide(); });
+var saved = 0;
+try { var ss = localStorage.getItem('piano-oto-song'); if (ss !== null) saved = +ss; } catch (e) {}
+setSong(saved);
+window.addEventListener('orientationchange', function () { setTimeout(function () { layout(); updateGuide(); }, 300); });
+
+/* ---------- オフライン ---------- */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || /[?&]sw=1/.test(location.search))) {
+  try { navigator.serviceWorker.register('sw.js')['catch'](function () {}); } catch (e) {}
+}
+if (window.applicationCache) {
+  try { window.applicationCache.addEventListener('updateready', function () { try { window.applicationCache.swapCache(); } catch (e2) {} }); } catch (e) {}
+}
+
+/* 動作確認用（遊ぶときには使いません） */
+window.__piano = { voices: voices, bufs: bufs, held: held, keys: keys, state: function () { return { song: song && song.t, pos: pos, next: nextKey && nextKey._m }; } };
+})();
+</script>
+</body>
+</html>
